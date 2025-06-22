@@ -1,71 +1,76 @@
-import './App.css'
-import Button from './components/Button/Button';
-import CardButton from './components/CardButton/CardButton';
-import JournalItem from './components/JournalItem/JournalItem';
-import LeftPannel from './layouts/LeftPannel/LefPannel';
-import Body from './layouts/Body/Body';
-import Header from './components/Header/Header';
-import JournalList from './components/JournalList/JournalList';
-import JournalAddButton from './components/JournalAddButton/JournalAddButton';
-import JournalForm from './components/JournalForm/JournalForm';
-import { useEffect, useState } from 'react';
+import "./App.css";
+import Button from "./components/Button/Button";
+import CardButton from "./components/CardButton/CardButton";
+import JournalItem from "./components/JournalItem/JournalItem";
+import LeftPannel from "./layouts/LeftPannel/LefPannel";
+import Body from "./layouts/Body/Body";
+import Header from "./components/Header/Header";
+import JournalList from "./components/JournalList/JournalList";
+import JournalAddButton from "./components/JournalAddButton/JournalAddButton";
+import JournalForm from "./components/JournalForm/JournalForm";
+import { useLocalStorage } from "./hooks/use-localstorage.hook";
+import { UserContext, UserContextProvider } from "./context/user.context";
+import { useState } from "react";
 
+function mapItems(items) {
+  if (!items) {
+    return [];
+  }
+  return items.map((i) => ({
+    ...i,
+    date: new Date(i.date),
+  }));
+}
 function App() {
-  const [items, setItems] = useState([]);
- useEffect(() => {
-		const data = JSON.parse(localStorage.getItem('data'));
-		if (data) {
-			setItems(data.map(item => ({
-				...item,
-				date: new Date(item.date)
-			})));
-		}
-	}, []);
+  const [items, setItems] = useLocalStorage("data");
+  const [selectedItem, setSelectedItem] = useState(null);
 
-  useEffect(()=> {
-    if(items.length) {
-      localStorage.setItem('data', JSON.stringify(items))
+  const addItem = (item) => {
+    if (!item.id) {
+      setItems([
+        ...mapItems(items),
+        {
+          ...item,
+          date: new Date(item.date),
+          id: items.length > 0 ? Math.max(...items.map((i) => i.id)) + 1 : 1,
+        },
+      ]);
+    } else {
+      setItems([
+        ...mapItems(items).map((i) => {
+          if (i.id === item.id) {
+            return {
+              ...item,
+            };
+          }
+          return i;
+        }),
+      ]);
     }
-  }, [items])
+  };
 
-  
-
-  const addItem = item => {
-		setItems(oldItems => [...oldItems, {
-			text: item.text,
-			tittle: item.tittle,
-			date: new Date(item.date),
-      id: oldItems.length > 0 ? Math.max(...oldItems.map(i => i.id)) + 1 : 1
-		}]);
-	};
-
+  const deleteItem = (id) => {
+    setItems([...items.filter((i) => i.id !== id)]);
+  };
 
   return (
-      <div className='app'>
+    <UserContextProvider>
+      <div className="app">
         <LeftPannel>
-            <Header/>
-            <JournalAddButton/>
-            <JournalList>
-              {items.length === 0 && <p>Добавьте свою первую запись</p>} 
-              {items.length > 0 && items.map(el => (
-                <CardButton key={el.id}>
-                  <JournalItem
-                    tittle={el.tittle}
-                    text={el.text}
-                    date={el.date}
-                  />
-                </CardButton>
-              )
-
-              )}
-            </JournalList>
+          <Header />
+          <JournalAddButton clearForm={() => setSelectedItem(null)} />
+          <JournalList items={mapItems(items)} setItem={setSelectedItem} />
         </LeftPannel>
         <Body>
-          <JournalForm onSubmit={addItem}/>
+          <JournalForm
+            onSubmit={addItem}
+            data={selectedItem}
+            onDelete={deleteItem}
+          />
         </Body>
       </div>
-      
-    )
-  }
+    </UserContextProvider>
+  );
+}
 
-export default App
+export default App;
